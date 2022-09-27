@@ -2,103 +2,142 @@
 
 namespace app\models;
 
-class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
+use Yii;
+use yii\db\Exception;
+use yii\db\Query;
+
+/**
+ * This is the model class for table "user".
+ *
+ * @property int $id
+ * @property string $username
+ * @property string $auth_key
+ * @property string $password_hash
+ * @property string|null $password_reset_token
+ * @property string $email
+ * @property int $status
+ * @property int $created_at
+ * @property int $updated_at
+ * @property string|null $verification_token
+ *
+ * @property Messages[] $messages
+ * @property Threads[] $threads
+ * @property Threads[] $threads0
+ */
+class User extends \yii\db\ActiveRecord
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
 
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
-
+    public static $nameArr = ['John', 'Paula', 'Doe', 'Phillips', 'Maria', 'Angela'];
 
     /**
      * {@inheritdoc}
      */
-    public static function findIdentity($id)
+    public static function tableName()
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return 'user';
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function findIdentityByAccessToken($token, $type = null)
+    public function rules()
     {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return [
+            [['username'], 'required'],
+            [['created_at', 'updated_at'], 'integer'],
+            [['username'], 'string', 'max' => 255],
+            [['username'], 'unique'],
+        ];
     }
 
     /**
-     * Finds user by username
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'username' => 'Username',
+            'created_at' => 'Created At',
+            'updated_at' => 'Updated At',
+        ];
+    }
+
+    /**
+     * Gets query for [[Messages]].
      *
-     * @param string $username
-     * @return static|null
+     * @return \yii\db\ActiveQuery
      */
-    public static function findByUsername($username)
+    public function getMessages()
     {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return $this->hasMany(Messages::className(), ['sender_id' => 'id']);
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getAuthKey()
-    {
-        return $this->authKey;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function validateAuthKey($authKey)
-    {
-        return $this->authKey === $authKey;
-    }
-
-    /**
-     * Validates password
+     * Gets query for [[Threads]].
      *
-     * @param string $password password to validate
-     * @return bool if password provided is valid for current user
+     * @return \yii\db\ActiveQuery
      */
-    public function validatePassword($password)
+    public function getThreads()
     {
-        return $this->password === $password;
+        return $this->hasMany(Threads::className(), ['chatter_one_id' => 'id']);
+    }
+
+    /**
+     * Gets query for [[Threads0]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getThreads0()
+    {
+        return $this->hasMany(Threads::className(), ['chatter_two_id' => 'id']);
+    }
+
+    /**
+     * @param $number
+     * @param bool $returnLastId
+     * @return int
+     */
+    public static function generateUsers($number, &$lastInsertedId = 0, $returnLastId = TRUE)
+    {
+        try {
+            while ($number-- > 0) {
+                $user = new User();
+                $user->username = uniqid(strtolower(self::$nameArr[array_rand(self::$nameArr, 1)]) . "_");
+                $user->save();
+            }
+            if ($returnLastId) {
+                $lastInsertedId = isset($user) ? $user->id : FALSE;
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    /**
+     * @param $start
+     * @param $end
+     * @param int $limit
+     * @param string $dir
+     * @return array
+     * @throws Exception
+     */
+    public static function getUserActivity($start, $end, $limit = 10, $dir = "DESC")
+    {
+        $records = (new Query())
+            ->select([
+                'u.id',
+                'u.username',
+                'COUNT(`u`.id) AS message_number'])
+            ->from('user as u')
+            ->join('LEFT JOIN', 'messages as m', 'u.id = m.sender_id')
+            ->andWhere([">=", "m.created_at", $start])
+            ->andWhere(["<=", "m.created_at", $end])
+            ->groupBy('u.id')
+            ->limit($limit)
+            ->orderBy("message_number {$dir}")
+            ->createCommand()
+            ->queryAll();
+        return $records;
     }
 }
