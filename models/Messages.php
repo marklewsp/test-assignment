@@ -124,15 +124,9 @@ class Messages extends \yii\db\ActiveRecord
         switch ($unit) {
             case "year":
             case "month":
-                $messages = Messages::find()
-                    ->select([
-                        "DATE('{$start}') as period_start",
-                        "DATE('{$end}') as period_end",
-                        "COUNT(*) as message_number"])
-                    ->andWhere([">=", "created_at", $start])
-                    ->andWhere(["<=", "created_at", $end])
-                    ->createCommand()
-                    ->queryOne();
+                Messages::getDb()->createCommand("CALL resetrecords()")->query();
+                Messages::getDb()->createCommand("CALL totalrecords('{$start}', '{$end}', '{$unit}')")->query();
+                $messages = Records::getTotalRecords();
                 break;
             default:
                 $messages = Messages::find()

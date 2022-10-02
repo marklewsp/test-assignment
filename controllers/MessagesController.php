@@ -27,45 +27,7 @@ class MessagesController extends ActiveController
      */
     public function deliveredByTime($start, $end, $period = 'year')
     {
-        $tempStart = $start;
-        switch ($period) {
-            case 'year':
-                $tempEnd = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempStart)) . " +1 year -1 day"));
-                do{
-                    if ($tempEnd >= $end) {
-                        $tempEnd = $end;
-                    }
-                    elseif ($tempStart < $end) {
-                        $tempEnd = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempStart)) . " +1 year -1 day"));
-                    } else {
-                        $tempEnd = $end;
-                    }
-                    $result[] = Messages::getMessagesByTime($tempStart, $tempEnd, $period);
-                    $tempStart = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempEnd)) . " +1 day"));
-
-                }while($tempStart <= $end);
-                break;
-            case 'month':
-                $tempEnd = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempStart)) . " +1 month -1 day"));
-                do{
-                    if ($tempStart <= $end) {
-                        $tempEnd = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempStart)) . " +1 month -1 day"));
-                    }
-                    if ($tempEnd >= $end) {
-                        $tempEnd = $end;
-                    }
-
-                    $result[] = Messages::getMessagesByTime($tempStart, $tempEnd, $period);
-                    $tempStart = date("Y-m-d", strtotime(date("Y-m-d", strtotime($tempEnd)) . " +1 day"));
-
-                }while($tempStart <= $end);
-                break;
-            case 'day':
-                $result = Messages::getMessagesByTime($start, $end, $period);
-                break;
-            default:
-                $result = [];
-        }
+        $result = Messages::getMessagesByTime($start, $end, $period);
         return $result;
     }
 
