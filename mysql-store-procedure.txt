@@ -1,0 +1,38 @@
+DELIMITER $$
+DROP PROCEDURE IF EXISTS resetrecords$$
+CREATE PROCEDURE resetrecords()
+BEGIN
+	TRUNCATE records;
+END$$
+
+DROP PROCEDURE IF EXISTS totalrecords$$
+CREATE PROCEDURE totalrecords(start_date DATE, end_date DATE, group_unit VARCHAR(5))
+BEGIN
+    DECLARE tempStart DATE DEFAULT start_date;
+	DECLARE tempEnd DATE;
+	WHILE tempStart <= end_date DO
+        SET tempEnd = DATE(tempStart);
+
+        IF group_unit = "year" THEN
+            SET tempEnd = DATE_ADD(tempEnd, INTERVAL 365 DAY);
+        ELSEIF group_unit = "month" THEN
+            SET tempEnd = DATE_ADD(tempEnd, INTERVAL 30 DAY);
+        END IF;
+
+        IF tempStart = end_date THEN
+            SET tempEnd = DATE(end_date);
+        END IF;
+
+        IF tempEnd > end_date THEN
+            SET tempEnd = DATE(end_date);
+        END IF;
+        INSERT INTO records (period_start, period_end, message_number)
+        SELECT DATE(tempStart) as period_start, DATE(tempEnd) as period_end, COUNT(*) as message_number
+        FROM messages
+        WHERE DATE(created_at) >= tempStart AND DATE(created_at) <= tempEnd;
+        SET tempStart = DATE_ADD(tempEnd, INTERVAL 1 DAY);
+	END WHILE;
+    SELECT * FROM records;
+END$$
+
+DELIMITER ;
